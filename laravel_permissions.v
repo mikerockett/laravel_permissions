@@ -1,56 +1,9 @@
 import os { args, execute, execute_or_panic, input, user_os }
 import cli { Command }
 import term
-import regex
-
-const (
-	fqdn_max_label_length = 63
-	fqdn_re_base          = r'^[-a-zA-Z0-9]+$'
-	fqdn_re_tld           = r'^(([a-zA-Z]{2,})|(xn[-a-zA-Z0-9]{2,}))$'
-)
 
 fn valid_string_prompt(input string) (bool, string) {
 	return true, ''
-}
-
-pub fn regex_valid(re_query string) bool {
-	regex.regex_opt(re_query) or { return false }
-	return true
-}
-
-pub fn regex_match(val string, re_query string) bool {
-	if !regex_valid(re_query) {
-		eprintln('Regex $re_query is invalid.')
-		exit(1)
-	}
-	mut re := regex.regex_opt(re_query) or { return false }
-	start, _ := re.match_string(val)
-	return start != regex.no_match_found
-}
-
-pub fn validate_fqdn(hostname string) bool {
-	parts := hostname.split('.')
-	for part in parts {
-		if part.len > fqdn_max_label_length {
-			return false
-		}
-	}
-	if parts.len < 2 {
-		return false
-	}
-	tld := parts.last()
-	if !regex_match(tld, fqdn_re_tld) {
-		return false
-	}
-	for part in parts {
-		if !regex_match(part, fqdn_re_base) {
-			return false
-		}
-		if part[0] == `-` || part[part.len - 1] == `-` {
-			return false
-		}
-	}
-	return true
 }
 
 type StringValidationCallback = fn (input string) (bool, string)
@@ -64,7 +17,7 @@ pub struct StringPrompt {
 
 pub fn ask(prompt StringPrompt) string {
 	default_str := if prompt.default == '' { 'required' } else { prompt.default }
-	input := input(term.yellow('? ') + prompt.message + term.dim(' $default_str '))
+	input := input(term.yellow('? ' + prompt.message) + term.dim(' ($default_str) → '))
 	if prompt.required && input == '' {
 		eprintln(term.red('  input is required'))
 		return ask(prompt)
@@ -93,8 +46,7 @@ pub fn preflight() {
 pub fn ensure_supported_user_os() {
 	println(term.dim('ensuring os supported'))
 	user_os := user_os()
-	allowed := $if prod { ['linux'] } $else { ['linux', 'macos'] }
-	if user_os.trim_space() !in allowed {
+	if user_os.trim_space() != 'linux' {
 		eprintln(term.red('$user_os is not supported'))
 		exit(1)
 	}
@@ -106,8 +58,7 @@ pub fn ensure_supported_user_os() {
 pub fn ensure_running_as_root() {
 	println(term.dim('ensuring running as root'))
 	result := execute_or_panic('id -u')
-	allowed := $if prod { ['0'] } $else { ['0', '501'] }
-	if result.output.trim_space() !in allowed {
+	if result.output.trim_space() != '0' {
 		eprintln(term.red('must be running as root, quitting'))
 		exit(1)
 	}
@@ -130,13 +81,14 @@ fn main() {
 pub fn run(command Command) {
 	preflight()
 
+	println('')
 	println(term.dim('answer the following prompts, or type exit, quit, or q to quit.'))
 
 	owner := ask(
-		message: 'owner user (domain-user)'
+		message: 'owner user'
 		required: true
 		validator: fn (input string) (bool, string) {
-			return validate_fqdn(input) && execute('id -un $input').exit_code == 0, 'invalid domain-based username (does not exist or is malformed)'
+			return execute('id -un $input').exit_code == 0, 'invalid username, does not exist'
 		}
 	)
 
@@ -144,11 +96,12 @@ pub fn run(command Command) {
 		message: 'group (web-server user)'
 		default: 'www-data'
 		validator: fn (input string) (bool, string) {
-			return execute('id -un $input').exit_code == 0, 'invalid username (does not exist)'
+			return execute('id -un $input').exit_code == 0, 'invalid username, does not exist'
 		}
 	)
 
 	www := '/home/$owner/www'
+
 	println(term.bright_blue('→ adding owner to web-server group…'))
 	execute_or_panic('usermod -a -G $group $owner')
 
