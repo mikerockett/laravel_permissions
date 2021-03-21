@@ -1,4 +1,4 @@
-import os { args, execute, execute_or_panic, input, user_os }
+import os { args, execute, execute_or_panic, input, is_dir, user_os }
 import cli { Command }
 import term
 
@@ -13,6 +13,11 @@ pub struct StringPrompt {
 	default   string
 	required  bool
 	validator StringValidationCallback = valid_string_prompt
+}
+
+pub struct Instruction {
+	label   string [required]
+	command string [required]
 }
 
 pub fn ask(prompt StringPrompt) string {
@@ -100,25 +105,39 @@ pub fn run(command Command) {
 		}
 	)
 
-	www := '/home/$owner/www'
+	homedir := ask(
+		message: 'home directory (relative to server root)'
+		default: 'home'
+		validator: fn (input string) (bool, string) {
+			return is_dir('/' + input.trim_left('/')), 'invalid home directory, does not exist'
+		}
+	)
 
-	println(term.bright_blue('→ adding owner to web-server group…'))
-	execute_or_panic('usermod -a -G $group $owner')
+	www := ask(
+		message: 'public/docroot directory (relative to /$homedir/$owner)'
+		default: 'www'
+		// todo: swap out the is_dir check for a validator once closure support has been added to vlang.
+	).trim_left('/')
 
-	println(term.bright_blue('→ applying group and owner to $www…'))
-	execute_or_panic('chown -R $owner:$group $www')
+	path := '/$homedir/$owner/$www'
 
-	println(term.bright_blue('→ setting file permissions to 660…'))
-	execute_or_panic('find $www -type f -exec chmod 660 {} +')
+	if !is_dir(path) {
+		eprintln(term.red('  /$homedir/$owner/$www does not exist'))
+	}
 
-	println(term.bright_blue('→ setting directory permissions to 2770…'))
-	execute_or_panic('find $www -type d -exec chmod 2770 {} +')
+	instructions := [
+		Instruction{'adding owner to web-server group…', 'usermod -a -G $group $owner'},
+		Instruction{'applying group and owner to $path…', 'chown -R $owner:$group $path'},
+		Instruction{'setting file permissions to 660…', 'find $path -type f -exec chmod 660 {} +'},
+		Instruction{'setting directory permissions to 2770…', 'find $path -type d -exec chmod 2770 {} +'},
+		Instruction{'setting web-server group on storage and bootstrap/cache directories…', 'chgrp -R $group $path/storage $path/bootstrap/cache'},
+		Instruction{'setting ug+rwx permissions on storage and bootstrap/cache directories…', 'chmod -R ug+rwx $path/storage $path/bootstrap/cache'},
+	]
 
-	println(term.bright_blue('→ setting web-server group on storage and bootstrap/cache directories…'))
-	execute_or_panic('chgrp -R $group $www/storage $www/bootstrap/cache')
-
-	println(term.bright_blue('→ setting ug+rwx permissions on storage and bootstrap/cache directories…'))
-	execute_or_panic('chmod -R ug+rwx $www/storage $www/bootstrap/cache')
+	for instruction in instructions {
+		println(term.bright_blue('→ $instruction.label ($instruction.command)'))
+		execute_or_panic(instruction.command)
+	}
 
 	println(term.green('done.'))
 }

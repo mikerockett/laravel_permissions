@@ -17,6 +17,7 @@ running preflight checks
 os supported
 running as root
 preflight checks complete
+
 answer the following prompts, or type exit, quit, or q to quit.
 ? owner user (domain-user) required domain.com
 ? group (web-server user) www-data
@@ -41,6 +42,7 @@ You can now dump this binary on your server however you see fit.
 
 ## Todo
 
-- [ ] Get the domain-user home directory instead of hard-coding to `/home/$user`
-- [ ] Ask for the document root instead of hard-coding to `www`
+- [x] Get the domain-user home directory instead of hard-coding to `/home/$user`
+- [x] Ask for the document root instead of hard-coding to `www`
+- [ ] - `swap out the is_dir check for a validator once closure support has been added to vlang.`
 - [ ] Allow environment variables or vargs to set permission modes instead of hard-coding to `640` and `2770` (although, this might not be necessary)
