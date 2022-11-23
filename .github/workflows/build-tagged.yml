@@ -18,7 +18,7 @@ jobs:
           v-version: latest
         id: v
       - name: Build repository app
-        run: v -prod ngc.v -o ngc -os linux
+        run: v -prod laravel_permissions.v -o laravel_permissions -os linux
       - name: Release binary to latest tag
         uses: "marvinpinto/action-automatic-releases@latest"
         with:
@@ -26,4 +26,4 @@ jobs:
           prerelease: false
           title: "Production Build for Linux"
           files: |
-            ngc
+            laravel_permissions
