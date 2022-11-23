@@ -58,7 +58,7 @@ pub fn preflight() {
 }
 
 pub fn ensure_supported_user_os() {
-  println(term.dim('ensuring os supported'))
+  print(term.dim('ensuring os supported '))
 
   user_os := os.user_os()
 
@@ -67,14 +67,11 @@ pub fn ensure_supported_user_os() {
     exit(1)
   }
 
-  term.cursor_up(1)
-  term.erase_line_clear()
-
-  println(term.bright_green('os supported'))
+  println(term.bright_green('ok'))
 }
 
 pub fn ensure_running_as_root() {
-  println(term.dim('ensuring running as root'))
+  print(term.dim('ensuring running as root '))
 
   result := os.execute_or_panic('id -u')
 
@@ -83,10 +80,7 @@ pub fn ensure_running_as_root() {
     exit(1)
   }
 
-  term.cursor_up(1)
-  term.erase_line_clear()
-
-  println(term.bright_green('running as root'))
+  println(term.bright_green('ok'))
 }
 
 fn main() {
@@ -100,7 +94,7 @@ fn main() {
   app.parse(os.args)
 }
 
-pub fn run(command cli.Command) {
+pub fn run(command cli.Command)! {
   preflight()
 
   println('')
